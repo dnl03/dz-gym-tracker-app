@@ -1,0 +1,314 @@
+@startuml sequence_registration
+'title Rejestracja użytkownika
+skinparam dpi 200
+skinparam sequenceGroupFontSize 20
+skinparam sequenceParticipantFontSize 20
+skinparam sequenceActorFontSize 20
+skinparam sequenceArrowFontSize 18
+
+actor "Klient API" as Klient_API 
+participant "Aplikacja" as API
+participant "Baza danych" as BD
+participant "Serwis e-mail" as Email
+
+Klient_API -> API : POST /register
+API -> API : Walidacja danych
+opt Błąd walidacji
+    API -> Klient_API : 422 Unprocessable Entity\n +szczegóły bledów walidacji
+end
+
+API -> BD : Sprawdź czy email istnieje w bazie
+
+alt Email już istnieje
+    API -> Klient_API : 409 Conflict\n//Podany adres istnieje w bazie danych!//
+    ...
+else Email nie istnieje
+    API -> BD : Zapisz użytkownika ze statusem //unverified//
+    API -> API : Wygeneruj kod aktywacyjny
+    API -> BD : Zapisz kod aktywacyjny w bazie danych
+    API -> Email : Wyślij e-mail z kodem aktywacyjnym
+    API -> Klient_API : 201 Created\n//Konto utworzone, sprawdź skrzynkę e-mail!//
+end
+
+opt Błąd wewnętrzny serwera
+    API -> Klient_API : 500 Internal Server Error
+end
+
+@enduml
+
+
+@startuml sequence_create_trening_session
+'title Dodawanie sesji treningowej
+skinparam dpi 200
+skinparam sequenceGroupFontSize 20
+skinparam sequenceParticipantFontSize 20
+skinparam sequenceActorFontSize 20
+skinparam sequenceArrowFontSize 18
+
+actor "Klient API" as Klient_API 
+participant "Aplikacja" as API
+participant "Baza danych" as BD
+
+Klient_API -> API : POST /sessions
+API -> API : Walidacja danych
+
+opt Błąd walidacji
+    API -> Klient_API : 422 Unprocessable Entity\n +szczegóły bledów walidacji
+end
+
+API -> API : Pobierz dane użytkownika z tokenu JWT
+API -> BD : Sprawdź, czy sesja o podanej nazwie już istnieje w bazie danych
+
+alt Sesja o podanej nazwie już istnieje w bazie danych
+    API -> Klient_API : 409 Conflict\n//Sesja treningowa już istnieje!//
+    ...
+else Nazwa sesji jest unikalna
+    API -> BD : Zapisz nową sesję treningową
+    API -> Klient_API : 201 Created\n//Sesja treningowa została utworzona!//
+end
+
+opt Błąd wewnętrzny serwera
+    API -> Klient_API : 500 Internal Server Error
+end
+
+@enduml
+
+
+@startuml sequence_add_trening_set
+'title Dodawanie serii do ćwiczenia w sesji treningowej
+skinparam dpi 200
+skinparam sequenceGroupFontSize 20
+skinparam sequenceParticipantFontSize 20
+skinparam sequenceActorFontSize 20
+skinparam sequenceArrowFontSize 18
+
+actor "Klient API" as Klient_API 
+participant "Aplikacja" as API
+participant "Baza danych" as BD
+
+Klient_API -> API : POST /sessions/{id}/exercise/{eid}/sets
+API -> API : Walidacja danych wejściowych
+
+opt Błąd walidacji
+    API -> Klient_API : 422 Unprocessable Entity\n+szczegóły błędów walidacji
+end
+
+API -> API : Pobierz dane użytkownika z tokenu JWT
+API -> BD : Sprawdź, czy sesja i ćwiczenie należą do użytkownika
+
+alt Brak dostępu do sesji lub ćwiczenia
+    API -> Klient_API : 403 Forbidden\n//Brak dostępu do wskazanej sesji lub ćwiczenia!//
+    ...
+else Dostęp poprawny
+    API -> BD : Pobierz One Rep Max
+
+    API -> API : Oblicz objętość serii
+    API -> API : Oblicz intensywność
+
+    API -> BD : Zapisz nową serię treningową
+
+    API -> Klient_API : 201 Created\n//Pomyślnie dodano serię!//
+end
+
+opt Błąd wewnętrzny serwera
+    API -> Klient_API : 500 Internal Server Error
+end
+
+@enduml
+
+
+@startuml use_case_trening_app
+left to right direction
+skinparam dpi 200
+skinparam actorFontSize 20
+skinparam packageFontSize 20
+skinparam usecaseArrowFontSize 20
+skinparam usecaseFontSize 20
+
+actor "Użytkownik" as U
+
+rectangle "Aplikacja" {
+
+  package "Rejestracja i logowanie" {
+    usecase R1 as "Rejestracja konta"
+    usecase L1 as "Logowanie"
+    usecase V1 as "Weryfikacja konta"
+    usecase VC1 as "Weryfikacja kodu aktywacyjnego"
+    usecase VE1 as "Wysłanie e-maila z kodem"
+    usecase E1 as "Sprawdzenie statusu konta"
+
+    U --> R1
+    U --> L1
+    U --> V1
+
+    V1 --> VC1 : <<include>>
+    V1 --> VE1 : <<include>>
+    L1 <-- E1 : <<extend>>  (jezeli konto nie zweryfikowane)
+  }
+
+
+  package "Zarządzanie kontem" {
+    usecase P1 as "Przegląd danych konta"
+    usecase P2 as "Aktualizacja danych osobowych"
+    usecase P3 as "Zmiana hasła"
+
+    U --> P1
+    U --> P2
+    U --> P3
+  }
+
+  package "Trening" {
+    usecase T1 as "Tworzenie sesji treningowej"
+    usecase T2 as "Dodanie ćwiczenia do sesji"
+    usecase T3 as "Wybór ćwiczenia z katalogu"
+    usecase T4 as "Dodanie serii do ćwiczenia"
+    usecase T5 as "Oblicz objętość i intensywność"
+    usecase T6 as "Edycja serii"
+    usecase T7 as "Usuwanie serii"
+
+    U --> T1
+    U --> T2
+    U --> T4
+    U --> T6
+    U --> T7
+
+    T2 --> T3 : <<include>>
+    T4 <-- T5 : <<extend>>  (jeżeli wszystkie wymagane dane)
+  }
+
+
+  package "Statystyki i analiza" {
+    usecase A1 as "Dodanie rekordu 1RM"
+    usecase A2 as "Historia treningów"
+    usecase A3 as "Analiza postępów"
+    usecase A4 as "Obliczanie progresu"
+
+    U --> A1
+    U --> A2
+    U --> A3
+
+    A3 --> A4 : <<include>>
+  }
+
+}
+@enduml
+
+@startuml erd_database
+skinparam linetype ortho
+scale 2
+skinparam classFontStyle bold
+skinparam classFontSize 20
+skinparam ArrowThickness 2
+
+entity "verification_codes" as verification_codes {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
+    \t<b>code</b> : <i>varchar[64] NOT NULL</i>
+    \t<b>expires_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "password_reset_tokens" as password_reset_tokens {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
+    \t<b>token</b> : <i>varchar[128] NOT NULL</i>
+    \t<b>expires_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>used_at</b> : <i>timestamptz</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "exercises" as exercises {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    \t<b>name</b> : <i>varchar[100] NOT NULL, UNIQUE</i>
+    \t<b>is_active</b> : <i>boolean NOT NULL DEFAULT true</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "user_details" as user_details {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
+    \t<b>weight_kg</b> : <i>numeric[6,2]</i>
+    \t<b>bf_pct</b> : <i>numeric[5,2]</i>
+    \t<b>biceps_cm</b> : <i>numeric[6,2]</i>
+    \t<b>waist_cm</b> : <i>numeric[6,2]</i>
+    \t<b>thigh_cm</b> : <i>numeric[6,2]</i>
+    \t<b>chest_cm</b> : <i>numeric[6,2]</i>
+    \t<b>calf_cm</b> : <i>numeric[6,2]</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "users" as users {
+    <b><u>PK\tid</u></b> : <i>uuid</i>
+    \t<b>email</b> : <i>varchar[255] NOT NULL, UNIQUE</i>
+    \t<b>password_hash</b> : <i>varchar[255] NOT NULL</i>
+    \t<b>status</b> : <i>varchar[12] NOT NULL</i>
+    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
+    \t<b>height_cm</b> : <i>numeric[5,2] NOT NULL</i>
+    \t<b>birth_date</b> : <i>date NOT NULL</i>
+    \t<b>gender</b> : <i>varchar[10] NOT NULL</i>
+    \t<b>avatar_url</b> : <i>text</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>updated_at</b> : <i>timestamptz</i>
+}
+
+entity "sessions" as sessions {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
+    \t<b>name</b> : <i>varchar[50] NOT NULL, UNIQUE <user_id, name></i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "session_exercises" as session_exercises {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tsession_id</b> : <i>bigserial NOT NULL</i>
+    <b>FK\texercise_id</b> : <i>bigserial NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+entity "sets" as sets {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tsession_exercise_id</b> : <i>bigserial NOT NULL</i>
+    \t<b>reps</b> : <i>int NOT NULL</i>
+    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
+    \t<b>volume</b> : <i>numeric[10,2] NOT NULL</i>
+    \t<b>intensity_pct</b> : <i>numeric[5,2] NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>updated_at</b> : <i>timestamptz</i>
+}
+
+entity "one_rep_maxes" as one_rep_maxes {
+    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
+    <b>FK\texercise_id</b> : <i>bigserial NOT NULL</i>
+    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
+    \t<b>video_url</b> : <i>text</i>
+    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+}
+
+' ==== RELACJE ====
+users ||--o{ verification_codes
+users ||--o{ password_reset_tokens
+users ||--o{ user_details
+users ||--o{ sessions
+sessions ||--o{ session_exercises
+session_exercises ||--o{ sets
+exercises ||--o{ session_exercises
+users ||--o{ one_rep_maxes
+exercises ||--o{ one_rep_maxes
+
+verification_codes -[hidden]down- password_reset_tokens
+password_reset_tokens -[hidden]down- exercises
+
+users -[hidden]down- session_exercises
+session_exercises -[hidden]down- sets
+
+sessions -[hidden]down- one_rep_maxes
+
+verification_codes -[hidden]right- users
+password_reset_tokens -[hidden]right- users
+exercises -[hidden]right- session_exercises
+exercises -[hidden]left- verification_codes
+user_details -[hidden]right- users
+
+
+@enduml
