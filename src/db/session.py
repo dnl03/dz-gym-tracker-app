@@ -9,11 +9,4 @@ def get_session():
         yield session
 
 def create_all():
-    pass
-    # with engine.begin() as conn:
-    #     # najpierw tabela
-    #     conn.exec_driver_sql('DROP TABLE IF EXISTS users CASCADE;')
-    #     # potem typ ENUM
-    #     conn.exec_driver_sql('DROP TYPE IF EXISTS genderenum CASCADE;')
-    # SQLModel.metadata.drop_all(engine)
-    # SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)

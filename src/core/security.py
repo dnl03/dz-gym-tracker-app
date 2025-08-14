@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 from jose import jwt
@@ -27,7 +27,7 @@ def create_access_token(
     expires_delta: Optional[timedelta] = None,
     extra_claims: Optional[Dict[str, Any]] = None,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     expire = now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MIN))
     to_encode = {"sub": subject, "iat": int(now.timestamp()), "exp": int(expire.timestamp())}
     if extra_claims:

@@ -55,10 +55,10 @@ class UserCreate(SQLModel):
     def bith_date_validator(cls, value: date) -> date:
         return birth_date_validation(value)
 
-    @field_validator("password")
-    @classmethod
-    def password_validator(cls, value: str) -> str:
-        return password_validation(value)
+    # @field_validator("password")
+    # @classmethod
+    # def password_validator(cls, value: str) -> str:
+    #     return password_validation(value)
 
 
 class UserUpdate(SQLModel):
