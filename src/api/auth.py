@@ -17,10 +17,10 @@ from core.auth import get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(data: UserCreate, session: Session = Depends(get_session)):
     if get_user_by_email(session, data.email):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Podany adres istnieje w bazie danych!")
 
     user = User(
         email=data.email,
@@ -45,10 +45,12 @@ def register_user(data: UserCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(vc)
 
-    return user
+    #TDOO: Send verification email with vc.code to user.email it is not important
+
+    return {"detail": "Konto utworzone, sprawdź skrzynkę e-mail!"}
 
 
-@router.post("/login")
+@router.post("/login", status_code=status.HTTP_200_OK)
 def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
@@ -57,18 +59,18 @@ def login_user(
 
     user = get_user_by_email(session, form_data.username)
     if user and user.blocked_until and user.blocked_until > datetime.now():
-        raise HTTPException(status_code=429, detail=f"User is blocked until {user.blocked_until}")
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"Konto zablokowane do {user.blocked_until}")
 
     if not user or not verify_password(form_data.password, user.password_hash):
         if user:
             user.failed_login_try += 1
             if user.failed_login_try >= 5:
-                user.blocked_until = datetime.now() + timedelta(minutes=15)
+                user.blocked_until = datetime.now() + timedelta(minutes=30)
                 session.add(user)
                 session.commit()
-                raise HTTPException(status_code=403, detail="User is blocked due to too many failed login attempts")
+                raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Konto zablokowane na 30 minut!")
 
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieprawidłowy email lub hasło!")
 
     if user.status != UserStatusEnum.VERIFIED:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Twoje konto nie zostało jeszcze zweryfikowane!")
@@ -77,14 +79,14 @@ def login_user(
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.post("/verify")
+@router.post("/verify", status_code=status.HTTP_200_OK)
 def verify_user(verification_code: VerificationCodeRequest, session: Session = Depends(get_session)):
 
     if (user := get_user_by_email(session, verification_code.email)) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid user or verification code")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny kod aktywacyjny lub adres email!")
 
     if (vc := get_verification_code_by_user_id(session, user.id, verification_code.code)) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid user or verification code")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny kod aktywacyjny lub adres email!")
 
 
     if datetime.now() > vc.expires_at:
@@ -96,7 +98,7 @@ def verify_user(verification_code: VerificationCodeRequest, session: Session = D
     session.add(user)
     delete_verification_code(session, vc)
     session.commit()
-    return {"detail": "Konto zostało pomyślnie zweryfikowane!"}
+    return {"detail": "Pomyślnie aktywowano konto!"}
     
 
 @router.get("/me", response_model=UserRead)
