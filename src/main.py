@@ -1,7 +1,11 @@
 from fastapi import FastAPI
+from db.session import create_all
+from api.auth import router as auth_router
 
-app = FastAPI()
+app = FastAPI(title="GymTracker")
 
-@app.get("/hello")
-def hellow_world():
-    return {"message": "Hello, World!"}
+@app.on_event("startup")
+def on_startup():
+    create_all()
+
+app.include_router(auth_router)
