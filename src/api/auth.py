@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 from datetime import datetime, timedelta
 import secrets
@@ -6,11 +6,16 @@ import secrets
 from db.session import get_session
 from db.user_repository import get_user_by_email
 from db.verification_repository import get_verification_code_by_user_id, delete_verification_code
+from db.password_reset_repository import get_reset_token, delete_reset_token, delete_tokens_by_user_id
 from models.user import User, UserStatusEnum
 from models.verification_code import VerificationCode
+from models.password_reset_token import PasswordResetToken
+
 from schemas.user import UserCreate, UserRead
 from schemas.verification_code import VerificationCodeRequest
-from core.security import hash_password, verify_password, create_access_token
+from schemas.password_reset import ForgotPasswordRequest, ResetPasswordRequest
+
+from core.security import hash_password, verify_password, create_access_token, create_token_and_hash, sha256_hex
 from fastapi.security import OAuth2PasswordRequestForm
 from core.auth import get_current_user
 
@@ -104,3 +109,46 @@ def verify_user(verification_code: VerificationCodeRequest, session: Session = D
 @router.get("/me", response_model=UserRead)
 def read_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+def forgot_password(data: ForgotPasswordRequest, session: Session = Depends(get_session)):
+    user = get_user_by_email(session, data.email)
+    if user:
+        delete_tokens_by_user_id(session, user.id)
+        plain_token, hash_token = create_token_and_hash()
+        prt = PasswordResetToken(
+            user_id=user.id,
+            token=hash_token,
+            expires_at=datetime.now() + timedelta(hours=1)
+        )
+        session.add(prt)
+        session.commit()
+        session.refresh(prt)
+        # TODO: wysłać email z linkiem zawierającym plain_token
+        print("localhost:3000/reset-password?token=" + plain_token)
+
+    return {"detail": "Link do zresetowania hasła został wysłany na podany adres email!"}
+
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(
+        data: ResetPasswordRequest,
+        token = Query(..., description="Token resetujący hasło"),
+        session: Session = Depends(get_session)
+    ):
+    hash_token = sha256_hex(token)
+    prt = get_reset_token(session, hash_token)
+
+    if not prt or prt.used or prt.expires_at < datetime.now():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Wystąpił niezidentyfikowany problem z tokenem, spróbuj ponownie przypomnieć hasło!")
+
+    user = session.get(User, prt.user_id)
+    user.password_hash = hash_password(data.new_password)
+    delete_reset_token(session, prt)
+    session.add(user)
+    session.commit()
+    return {"detail": "Hasło zostało zmienione pomyślnie!"}
