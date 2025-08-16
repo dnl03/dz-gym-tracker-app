@@ -5,6 +5,8 @@ from jose import jwt
 from passlib.context import CryptContext
 
 from core.config import settings
+import secrets
+import hashlib
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -37,3 +39,13 @@ def create_access_token(
 
 def decode_access_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+
+
+def create_token_and_hash() -> tuple[str, str]:
+    token_plain = secrets.token_urlsafe(32)
+    token_hash = sha256_hex(token_plain)
+    return token_plain, token_hash
+
+
+def sha256_hex(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
