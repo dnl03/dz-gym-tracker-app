@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from datetime import datetime, timedelta
 import secrets
@@ -13,13 +13,12 @@ from models.verification_code import VerificationCode
 from models.password_reset_token import PasswordResetToken
 from models.user_details import UserDetail
 
-from schemas.user import UserCreate, UserRead
+from schemas.user import UserCreate
 from schemas.verification_code import VerificationCodeRequest
 from schemas.password_reset import ForgotPasswordRequest, ResetPasswordRequest
 
 from core.security import hash_password, verify_password, create_access_token, create_token_and_hash, sha256_hex
 from fastapi.security import OAuth2PasswordRequestForm
-from core.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -131,29 +130,6 @@ def verify_user(verification_code: VerificationCodeRequest, session: Session = D
     session.commit()
     return {"detail": "Pomyślnie aktywowano konto!"}
     
-
-@router.get("/me")
-def read_me(
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    latest_user_details = session.exec(
-        select(UserDetail)
-        .where(UserDetail.user_id == current_user.id)
-        .order_by(UserDetail.created_at.desc())
-        .limit(1)
-    ).first()
-
-    return UserRead(
-        id=current_user.id,
-        email=current_user.email,
-        created_at=current_user.created_at,
-        birth_date=current_user.birth_date,
-        gender=current_user.gender,
-        user_details=latest_user_details
-    )
-
-
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 def forgot_password(data: ForgotPasswordRequest, session: Session = Depends(get_session)):

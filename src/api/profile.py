@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from schemas.user_details import UserDetailsUpdate
+from schemas.user import UserRead
 from sqlmodel import Session, select
 
 from models.user import User
@@ -40,3 +41,25 @@ def edit_profile(
     session.add(new_user_details)
     session.commit()
     return {"detail": "Dane zaktualizowane pomyślnie!"}
+
+
+@router.get("/me")
+def read_me(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    latest_user_details = session.exec(
+        select(UserDetail)
+        .where(UserDetail.user_id == current_user.id)
+        .order_by(UserDetail.created_at.desc())
+        .limit(1)
+    ).first()
+
+    return UserRead(
+        id=current_user.id,
+        email=current_user.email,
+        created_at=current_user.created_at,
+        birth_date=current_user.birth_date,
+        gender=current_user.gender,
+        user_details=latest_user_details
+    )
