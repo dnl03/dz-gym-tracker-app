@@ -69,10 +69,14 @@ def login_user(
     if not user or not verify_password(form_data.password, user.password_hash):
         if user:
             user.failed_login_try += 1
-            if user.failed_login_try >= 5:
+            failed_login_flag = user.failed_login_try >= 5
+
+            if failed_login_flag:
                 user.blocked_until = datetime.now() + timedelta(minutes=30)
-                session.add(user)
-                session.commit()
+                
+            session.add(user)
+            session.commit()
+            if failed_login_flag:
                 raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Konto zablokowane na 30 minut!")
 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieprawidłowy email lub hasło!")
@@ -81,6 +85,10 @@ def login_user(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Twoje konto nie zostało jeszcze zweryfikowane!")
 
     token = create_access_token(subject=str(user.id))
+    user.failed_login_try = 0
+    user.blocked_until = None
+    session.add(user)
+    session.commit()
     return {"access_token": token, "token_type": "bearer"}
 
 
