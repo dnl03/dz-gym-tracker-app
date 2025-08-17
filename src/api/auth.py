@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session
+from sqlmodel import Session, select
+
 from datetime import datetime, timedelta
 import secrets
 
@@ -10,6 +11,7 @@ from db.password_reset_repository import get_reset_token, delete_reset_token, de
 from models.user import User, UserStatusEnum
 from models.verification_code import VerificationCode
 from models.password_reset_token import PasswordResetToken
+from models.user_details import UserDetail
 
 from schemas.user import UserCreate, UserRead
 from schemas.verification_code import VerificationCodeRequest
@@ -30,11 +32,8 @@ def register_user(data: UserCreate, session: Session = Depends(get_session)):
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
-        weight_kg=data.weight_kg,
-        height_cm=data.height_cm,
         birth_date=data.birth_date,
-        gender=data.gender,
-        avatar_url=data.avatar_url,
+        gender=data.gender
     )
 
     vc = VerificationCode(
@@ -42,13 +41,32 @@ def register_user(data: UserCreate, session: Session = Depends(get_session)):
         code = secrets.token_hex(3).upper(),
         expires_at = datetime.now() + timedelta(hours=1)  # Code valid for 1 hour
     )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    user.user_details.append(
+        UserDetail(
+            user_id=user.id,
+            weight_kg=data.weight_kg,
+            height_cm=data.height_cm,
+            bf_pct=data.bf_pct,
+            biceps_cm=data.biceps_cm,
+            waist_cm=data.waist_cm,
+            thigh_cm=data.thigh_cm,
+            chest_cm=data.chest_cm,
+            calf_cm=data.calf_cm,
+            avatar_url=data.avatar_url
+        )
+    )
+    try:
+        session.add(user)
+        session.commit()
+        session.refresh(user)
 
-    session.add(vc)
-    session.commit()
-    session.refresh(vc)
+        session.add(vc)
+        session.commit()
+        session.refresh(vc)
+
+    except Exception:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Błąd podczas tworzenia konta!")
 
     #TDOO: Send verification email with vc.code to user.email it is not important
 
@@ -114,9 +132,26 @@ def verify_user(verification_code: VerificationCodeRequest, session: Session = D
     return {"detail": "Pomyślnie aktywowano konto!"}
     
 
-@router.get("/me", response_model=UserRead)
-def read_me(current_user: User = Depends(get_current_user)):
-    return current_user
+@router.get("/me")
+def read_me(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    latest_user_details = session.exec(
+        select(UserDetail)
+        .where(UserDetail.user_id == current_user.id)
+        .order_by(UserDetail.created_at.desc())
+        .limit(1)
+    ).first()
+
+    return UserRead(
+        id=current_user.id,
+        email=current_user.email,
+        created_at=current_user.created_at,
+        birth_date=current_user.birth_date,
+        gender=current_user.gender,
+        user_details=latest_user_details
+    )
 
 
 
