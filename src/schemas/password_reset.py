@@ -1,7 +1,5 @@
 from sqlmodel import SQLModel
-from pydantic import EmailStr, field_validator
-
-from schemas.user import password_validation
+from pydantic import EmailStr
 
 
 class ForgotPasswordRequest(SQLModel):

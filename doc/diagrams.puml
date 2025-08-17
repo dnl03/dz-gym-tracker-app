@@ -228,6 +228,9 @@ entity "user_details" as user_details {
     <b><u>PK\tid</u></b> : <i>bigserial</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
     \t<b>weight_kg</b> : <i>numeric[6,2]</i>
+    \t<b>height_cm</b> : <i>numeric[5,2] NOT NULL</i>
+    \t<b>birth_date</b> : <i>date NOT NULL</i>
+    \t<b>gender</b> : <i>varchar[10] NOT NULL</i>
     \t<b>bf_pct</b> : <i>numeric[5,2]</i>
     \t<b>biceps_cm</b> : <i>numeric[6,2]</i>
     \t<b>waist_cm</b> : <i>numeric[6,2]</i>
@@ -235,6 +238,7 @@ entity "user_details" as user_details {
     \t<b>chest_cm</b> : <i>numeric[6,2]</i>
     \t<b>calf_cm</b> : <i>numeric[6,2]</i>
     \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>avatar_url</b> : <i>text</i>
 }
 
 entity "users" as users {
@@ -242,12 +246,9 @@ entity "users" as users {
     \t<b>email</b> : <i>varchar[255] NOT NULL, UNIQUE</i>
     \t<b>password_hash</b> : <i>varchar[255] NOT NULL</i>
     \t<b>status</b> : <i>varchar[12] NOT NULL</i>
-    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
-    \t<b>height_cm</b> : <i>numeric[5,2] NOT NULL</i>
-    \t<b>birth_date</b> : <i>date NOT NULL</i>
-    \t<b>gender</b> : <i>varchar[10] NOT NULL</i>
-    \t<b>avatar_url</b> : <i>text</i>
+    \t<b>blocked_until</b> : <i>timestamptz</i>
     \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>failed_login_try</b> : <i>int NOT NULL, DEFAULT 0</i>
     \t<b>updated_at</b> : <i>timestamptz</i>
 }
 

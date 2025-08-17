@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
+
 from datetime import datetime, timedelta
 import secrets
 
@@ -10,14 +11,14 @@ from db.password_reset_repository import get_reset_token, delete_reset_token, de
 from models.user import User, UserStatusEnum
 from models.verification_code import VerificationCode
 from models.password_reset_token import PasswordResetToken
+from models.user_details import UserDetail
 
-from schemas.user import UserCreate, UserRead
+from schemas.user import UserCreate
 from schemas.verification_code import VerificationCodeRequest
 from schemas.password_reset import ForgotPasswordRequest, ResetPasswordRequest
 
 from core.security import hash_password, verify_password, create_access_token, create_token_and_hash, sha256_hex
 from fastapi.security import OAuth2PasswordRequestForm
-from core.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,11 +31,8 @@ def register_user(data: UserCreate, session: Session = Depends(get_session)):
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
-        weight_kg=data.weight_kg,
-        height_cm=data.height_cm,
         birth_date=data.birth_date,
-        gender=data.gender,
-        avatar_url=data.avatar_url,
+        gender=data.gender
     )
 
     vc = VerificationCode(
@@ -42,13 +40,32 @@ def register_user(data: UserCreate, session: Session = Depends(get_session)):
         code = secrets.token_hex(3).upper(),
         expires_at = datetime.now() + timedelta(hours=1)  # Code valid for 1 hour
     )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    user.user_details.append(
+        UserDetail(
+            user_id=user.id,
+            weight_kg=data.weight_kg,
+            height_cm=data.height_cm,
+            bf_pct=data.bf_pct,
+            biceps_cm=data.biceps_cm,
+            waist_cm=data.waist_cm,
+            thigh_cm=data.thigh_cm,
+            chest_cm=data.chest_cm,
+            calf_cm=data.calf_cm,
+            avatar_url=data.avatar_url
+        )
+    )
+    try:
+        session.add(user)
+        session.commit()
+        session.refresh(user)
 
-    session.add(vc)
-    session.commit()
-    session.refresh(vc)
+        session.add(vc)
+        session.commit()
+        session.refresh(vc)
+
+    except Exception:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Błąd podczas tworzenia konta!")
 
     #TDOO: Send verification email with vc.code to user.email it is not important
 
@@ -69,10 +86,14 @@ def login_user(
     if not user or not verify_password(form_data.password, user.password_hash):
         if user:
             user.failed_login_try += 1
-            if user.failed_login_try >= 5:
+            failed_login_flag = user.failed_login_try >= 5
+
+            if failed_login_flag:
                 user.blocked_until = datetime.now() + timedelta(minutes=30)
-                session.add(user)
-                session.commit()
+                
+            session.add(user)
+            session.commit()
+            if failed_login_flag:
                 raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Konto zablokowane na 30 minut!")
 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieprawidłowy email lub hasło!")
@@ -81,6 +102,10 @@ def login_user(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Twoje konto nie zostało jeszcze zweryfikowane!")
 
     token = create_access_token(subject=str(user.id))
+    user.failed_login_try = 0
+    user.blocked_until = None
+    session.add(user)
+    session.commit()
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -105,12 +130,6 @@ def verify_user(verification_code: VerificationCodeRequest, session: Session = D
     session.commit()
     return {"detail": "Pomyślnie aktywowano konto!"}
     
-
-@router.get("/me", response_model=UserRead)
-def read_me(current_user: User = Depends(get_current_user)):
-    return current_user
-
-
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 def forgot_password(data: ForgotPasswordRequest, session: Session = Depends(get_session)):
