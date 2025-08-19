@@ -23,3 +23,8 @@ def password_validation(value: str) -> str:
             "Password must be ≥8 chars, include uppercase, digit, and special char."
         )
     return value
+
+def non_empty_string_validation(value: str) -> str:
+    if not value.strip():
+        raise ValueError("String cannot be empty or whitespace.")
+    return value
