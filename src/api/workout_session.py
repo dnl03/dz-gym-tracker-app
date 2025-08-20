@@ -7,6 +7,10 @@ from core.auth import get_current_user
 from models.user import User
 from models.workout_session import WorkoutSession
 from schemas.workout_session import WorkoutSessionCreate
+from models.exercise import Exercise
+from models.workout_session_exercise import WorkoutSessionExercise
+from schemas.workout_session_exercise import WorkoutSessionExerciseCreate
+import uuid
 
 router = APIRouter(prefix="/workout_sessions", tags=["sessions"])
 
@@ -35,3 +39,52 @@ def create_session(
     session.commit()
     session.refresh(workout_session)
     return {"detail": "Pomyślnie utworzono sesję treningową!"}
+
+
+
+@router.post("/{session_id}/exercises", status_code=status.HTTP_201_CREATED)
+def add_exercise_to_session(
+    session_id: uuid.UUID,
+    data: WorkoutSessionExerciseCreate,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    
+    exercise = db.exec(
+        select(Exercise).where(Exercise.id == data.exercise_id)
+    ).first()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Nie znaleziono ćwiczenia!")
+
+
+    workout_session = db.exec(
+        select(WorkoutSession).where(
+            WorkoutSession.id == session_id,
+            WorkoutSession.user_id == current_user.id,
+            )
+    ).first()
+
+    if not workout_session:
+        raise HTTPException(status_code=404, detail="Sesja nie istnieje!")
+
+
+    existing = db.exec(
+        select(WorkoutSessionExercise).where(
+            WorkoutSessionExercise.workout_session_id == session_id,
+            WorkoutSessionExercise.exercise_id == data.exercise_id,
+        )
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Ćwiczenie już istnieje w tej sesji treningowej!")
+
+
+    session_exercise = WorkoutSessionExercise(
+        workout_session_id=session_id,
+        exercise_id=data.exercise_id
+    )
+
+    db.add(session_exercise)
+    db.commit()
+    db.refresh(session_exercise)
+
+    return {"detail": "Pomyślnie dodano ćwiczenie do sesji treningowej!"}
