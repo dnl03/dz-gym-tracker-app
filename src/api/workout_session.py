@@ -10,6 +10,9 @@ from schemas.workout_session import WorkoutSessionCreate
 from models.exercise import Exercise
 from models.workout_session_exercise import WorkoutSessionExercise
 from schemas.workout_session_exercise import WorkoutSessionExerciseCreate
+from schemas.workout_set import WorkoutSetCreate
+from models.workout_set import WorkoutSet
+from models.one_rep_max import OneRepMax
 import uuid
 
 router = APIRouter(prefix="/workout_sessions", tags=["sessions"])
@@ -65,7 +68,7 @@ def add_exercise_to_session(
     ).first()
 
     if not workout_session:
-        raise HTTPException(status_code=404, detail="Sesja nie istnieje!")
+        raise HTTPException(status_code=404, detail="Brak dostępu do podanej sesji treningowej!")
 
 
     existing = db.exec(
@@ -158,3 +161,58 @@ def delete_session(
     db.commit()
 
     return {"detail": "Pomyślnie usunięto sesję treningową!"}
+
+
+@router.post("/{session_id}/exercises/{exercise_id}/sets", status_code=status.HTTP_201_CREATED)
+def add_set_to_exercise(
+    session_id: uuid.UUID,
+    exercise_id: int,
+    data: WorkoutSetCreate,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    workout_session = db.exec(
+        select(WorkoutSession).where(
+            WorkoutSession.id == session_id,
+            WorkoutSession.user_id == current_user.id,
+        )
+    ).first()
+
+    if not workout_session:
+        raise HTTPException(status_code=404, detail="Brak dostępu do podanej sesji treningowej!")
+
+    session_exercise = db.exec(
+        select(WorkoutSessionExercise).where(
+            WorkoutSessionExercise.workout_session_id == session_id,
+            WorkoutSessionExercise.exercise_id == exercise_id,
+        )
+    ).first()
+
+    if not session_exercise:
+        raise HTTPException(status_code=404, detail="Brak dostępnych danych!")
+
+    last_max_rep = db.exec(
+        select(OneRepMax)
+        .where(
+            OneRepMax.user_id == current_user.id,
+            OneRepMax.exercise_id == exercise_id,
+        )
+        .order_by(OneRepMax.created_at.desc())
+    ).first()
+
+    intensity = (last_max_rep.weight / data.weight_kg) if last_max_rep else 1
+    volume = data.weight_kg * data.reps
+
+    workout_set = WorkoutSet(
+        workout_session_exercise_id=session_exercise.id,
+        weight_kg=data.weight_kg,
+        reps=data.reps,
+        intensity=intensity,
+        volume=volume,
+    )
+
+    db.add(workout_set)
+    db.commit()
+    db.refresh(workout_set)
+
+    return {"detail": "Pomyślnie dodano serię!"}
