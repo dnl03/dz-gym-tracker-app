@@ -121,3 +121,40 @@ def remove_exercise_from_session(
     db.commit()
 
     return {"detail": "Pomyślnie usunięto ćwiczenie z sesji treningowej!"}
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: uuid.UUID,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    workout_session = db.exec(
+        select(WorkoutSession).where(
+            WorkoutSession.id == session_id,
+            WorkoutSession.user_id == current_user.id,
+        )
+    ).first()
+
+    if not workout_session:
+        raise HTTPException(status_code=404, detail="Brak dostępu do podanej sesji treningowej!")
+
+
+    #remove all exercises related to the workout session
+    session_exercises = db.exec(
+        select(WorkoutSessionExercise).where(
+            WorkoutSessionExercise.workout_session_id == session_id
+        )
+    ).all()
+
+    for session_exercise in session_exercises:
+        db.delete(session_exercise)
+
+    db.commit()
+
+
+    #remove the workout session itself
+    db.delete(workout_session)
+    db.commit()
+
+    return {"detail": "Pomyślnie usunięto sesję treningową!"}
