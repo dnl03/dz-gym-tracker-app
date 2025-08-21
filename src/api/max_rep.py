@@ -14,7 +14,7 @@ from datetime import datetime
 
 router = APIRouter(prefix="/max_rep", tags=["add_max_rep"])
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def add_max_rep(
     data: OneRepMaxCreate,
     current_user: User = Depends(get_current_user),
