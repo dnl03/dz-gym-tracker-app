@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 from sqlalchemy import func
 
 from db.session import get_session
@@ -120,6 +120,18 @@ def remove_exercise_from_session(
     if not session_exercise:
         raise HTTPException(status_code=404, detail="Brak dostępnych danych!")
 
+    # remove all sets related to the exercise
+    exercise_sets = db.exec(
+        select(WorkoutSet).where(
+            WorkoutSet.workout_session_exercise_id == session_exercise.id
+        )
+    ).all()
+
+    for workout_set in exercise_sets:
+        db.delete(workout_set)
+    db.commit()
+
+    # remove the exercies from session
     db.delete(session_exercise)
     db.commit()
 
@@ -150,7 +162,16 @@ def delete_session(
         )
     ).all()
 
+    #remove all sets related to the workout session
+    db.exec(
+    delete(WorkoutSet).where(
+            WorkoutSet.workout_session_exercise_id.in_([se.id for se in session_exercises])
+        )
+    )
+    db.commit()
+
     for session_exercise in session_exercises:
+        # remove all sets related to the exercise
         db.delete(session_exercise)
 
     db.commit()
