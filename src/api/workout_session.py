@@ -314,3 +314,52 @@ def update_set(
     db.commit()
 
     return {"detail": "Seria zaktualizowana pomyślnie!"}
+
+
+
+@router.delete(
+    "/{session_id}/exercises/{exercise_id}/sets/{set_id}",
+    status_code=status.HTTP_200_OK,
+)
+def delete_workout_set(
+    session_id: uuid.UUID,
+    exercise_id: int,
+    set_id: int,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+
+    workout_session = db.exec(
+        select(WorkoutSession).where(
+            WorkoutSession.id == session_id,
+            WorkoutSession.user_id == current_user.id,
+        )
+    ).first()
+    if not workout_session:
+        raise HTTPException(status_code=404, detail="Brak dostępu do podanej sesji treningowej!")
+
+
+    session_exercise = db.exec(
+        select(WorkoutSessionExercise).where(
+            WorkoutSessionExercise.workout_session_id == session_id,
+            WorkoutSessionExercise.exercise_id == exercise_id,
+        )
+    ).first()
+    if not session_exercise:
+        raise HTTPException(status_code=404, detail="Brak odpowiednich danych!")
+
+
+    workout_set = db.exec(
+        select(WorkoutSet).where(
+            WorkoutSet.id == set_id,
+            WorkoutSet.workout_session_exercise_id == session_exercise.id,
+        )
+    ).first()
+    if not workout_set:
+        raise HTTPException(status_code=404, detail="Brak odpowiednich danych!")
+
+
+    db.delete(workout_set)
+    db.commit()
+
+    return {"detail": "Seria treningowa usunięta pomyślnie!"}
