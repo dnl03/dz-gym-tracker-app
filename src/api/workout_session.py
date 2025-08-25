@@ -10,7 +10,7 @@ from schemas.workout_session import WorkoutSessionCreate
 from models.exercise import Exercise
 from models.workout_session_exercise import WorkoutSessionExercise
 from schemas.workout_session_exercise import WorkoutSessionExerciseCreate
-from schemas.workout_set import WorkoutSetCreate
+from schemas.workout_set import WorkoutSetCreate, WorkoutSetUpdate
 from models.workout_set import WorkoutSet
 from models.one_rep_max import OneRepMax
 import uuid
@@ -237,3 +237,80 @@ def add_set_to_exercise(
     db.refresh(workout_set)
 
     return {"detail": "Pomyślnie dodano serię!"}
+
+
+@router.patch(
+    "/{session_id}/exercises/{exercise_id}/sets/{set_id}",
+    status_code=status.HTTP_200_OK,
+)
+def update_set(
+    session_id: uuid.UUID,
+    exercise_id: int,
+    set_id: int,
+    data: WorkoutSetUpdate,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    # Check if session exists and belongs to user
+    workout_session = db.exec(
+        select(WorkoutSession).where(
+            WorkoutSession.id == session_id,
+            WorkoutSession.user_id == current_user.id,
+        )
+    ).first()
+    if not workout_session:
+        raise HTTPException(
+            status_code=404, detail="Brak dostępu do podanej sesji treningowej!"
+        )
+
+    # Check if exercise belongs to this session
+    session_exercise = db.exec(
+        select(WorkoutSessionExercise).where(
+            WorkoutSessionExercise.workout_session_id == session_id,
+            WorkoutSessionExercise.exercise_id == exercise_id,
+        )
+    ).first()
+    if not session_exercise:
+        raise HTTPException(
+            status_code=404, detail="Brak powiązanego ćwiczenia!"
+        )
+
+    #Check if set exists and belongs to this exercise
+    workout_set = db.exec(
+        select(WorkoutSet).where(
+            WorkoutSet.id == set_id,
+            WorkoutSet.workout_session_exercise_id == session_exercise.id,
+        )
+    ).first()
+    if not workout_set:
+        raise HTTPException(
+            status_code=404, detail="Brak odpowiedniej serii treningowej!"
+        )
+    
+    if data.reps is None and data.weight_kg is None:
+        raise HTTPException(
+            status_code=400, detail="Brak danych do aktualizacji!"
+        )
+
+    if data.reps is not None:
+        workout_set.reps = data.reps
+    if data.weight_kg is not None:
+        workout_set.weight_kg = data.weight_kg
+
+   # recalculation volume
+    workout_set.volume = workout_set.weight_kg * workout_set.reps
+
+    # 6. Przeliczenie intensity (sprawdź czy user ma 1RM)
+    last_max_rep = db.exec(
+        select(OneRepMax).where(
+            OneRepMax.user_id == current_user.id,
+            OneRepMax.exercise_id == exercise_id,
+        ).order_by(OneRepMax.created_at.desc())
+    ).first()
+
+    workout_set.intensity = (last_max_rep.weight / data.weight_kg) if last_max_rep else 1
+
+    db.add(workout_set)
+    db.commit()
+
+    return {"detail": "Seria zaktualizowana pomyślnie!"}
