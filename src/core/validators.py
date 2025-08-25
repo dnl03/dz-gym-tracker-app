@@ -10,6 +10,10 @@ HeightCm = Annotated[Decimal, Field(gt=10, lt=300, max_digits=5, decimal_places=
 BodyFatPct = Annotated[Decimal, Field(gt=0, lt=70, max_digits=5, decimal_places=2)]
 CircuitCm = Annotated[Decimal, Field(gt=10, max_digits=5, decimal_places=2)]
 
+SetWeight = Annotated[Decimal, Field(gt=0, lt=500, max_digits=6, decimal_places=2)]
+SetReps = Annotated[int, Field(gt=0, lt=200)]
+
+
 
 def birth_date_validation(value: date) -> date:
     if value > datetime.now().date():
