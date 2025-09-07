@@ -4,6 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, TYPE_CHECKING
 
+from models.user import UserStatusEnum
+
 if TYPE_CHECKING:
     from models.user import User
 

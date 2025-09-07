@@ -201,89 +201,89 @@ skinparam classFontSize 20
 skinparam ArrowThickness 2
 
 entity "verification_codes" as verification_codes {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b><u>PK\tid</u></b> : <i>uuid</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
-    \t<b>code</b> : <i>varchar[64] NOT NULL</i>
-    \t<b>expires_at</b> : <i>timestamptz NOT NULL</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>code</b> : <i>varchar[6] NOT NULL</i>
+    \t<b>expires_at</b> : <i>timestamp NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
+
 entity "password_reset_tokens" as password_reset_tokens {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b><u>PK\tid</u></b> : <i>uuid</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
-    \t<b>token</b> : <i>varchar[128] NOT NULL</i>
-    \t<b>expires_at</b> : <i>timestamptz NOT NULL</i>
-    \t<b>used_at</b> : <i>timestamptz</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>token</b> : <i>varchar NOT NULL, UNIQUE</i>
+    \t<b>expires_at</b> : <i>timestamp NOT NULL</i>
+    \t<b>used</b> : <i>bool NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
 entity "exercises" as exercises {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b><u>PK\tid</u></b> : <i>int</i>
     \t<b>name</b> : <i>varchar[100] NOT NULL, UNIQUE</i>
-    \t<b>is_active</b> : <i>boolean NOT NULL DEFAULT true</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>description</b> : <i>varchar NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
 entity "user_details" as user_details {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b><u>PK\tid</u></b> : <i>uuid</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
-    \t<b>weight_kg</b> : <i>numeric[6,2]</i>
-    \t<b>height_cm</b> : <i>numeric[5,2] NOT NULL</i>
-    \t<b>birth_date</b> : <i>date NOT NULL</i>
-    \t<b>gender</b> : <i>varchar[10] NOT NULL</i>
-    \t<b>bf_pct</b> : <i>numeric[5,2]</i>
-    \t<b>biceps_cm</b> : <i>numeric[6,2]</i>
-    \t<b>waist_cm</b> : <i>numeric[6,2]</i>
-    \t<b>thigh_cm</b> : <i>numeric[6,2]</i>
-    \t<b>chest_cm</b> : <i>numeric[6,2]</i>
-    \t<b>calf_cm</b> : <i>numeric[6,2]</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
-    \t<b>avatar_url</b> : <i>text</i>
+    \t<b>weight_kg</b> : <i>numeric NOT NULL</i>
+    \t<b>height_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>bf_pct</b> : <i>numeric NOT NULL</i>
+    \t<b>biceps_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>waist_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>thigh_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>chest_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>calf_cm</b> : <i>numeric NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
+    \t<b>avatar_url</b> : <i>varchar</i>
 }
 
 entity "users" as users {
     <b><u>PK\tid</u></b> : <i>uuid</i>
-    \t<b>email</b> : <i>varchar[255] NOT NULL, UNIQUE</i>
-    \t<b>password_hash</b> : <i>varchar[255] NOT NULL</i>
-    \t<b>status</b> : <i>varchar[12] NOT NULL</i>
-    \t<b>blocked_until</b> : <i>timestamptz</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>email</b> : <i>varchar NOT NULL, UNIQUE</i>
+    \t<b>birth_date</b> : <i>date NOT NULL</i>
+    \t<b>gender</b> : <i>genderenum NOT NULL</i>
+    \t<b>password_hash</b> : <i>varchar NOT NULL</i>
+    \t<b>status</b> : <i>userstatusenum NOT NULL</i>
+    \t<b>blocked_until</b> : <i>timestamp</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
     \t<b>failed_login_try</b> : <i>int NOT NULL, DEFAULT 0</i>
-    \t<b>updated_at</b> : <i>timestamptz</i>
+    \t<b>updated_at</b> : <i>timestamp</i>
 }
 
-entity "sessions" as sessions {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+entity "workout_sessions" as sessions {
+    <b><u>PK\tid</u></b> : <i>uuid</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
-    \t<b>name</b> : <i>varchar[50] NOT NULL, UNIQUE <user_id, name></i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    \t<b>name</b> : <i>varchar[50] NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
-entity "session_exercises" as session_exercises {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
-    <b>FK\tsession_id</b> : <i>bigserial NOT NULL</i>
-    <b>FK\texercise_id</b> : <i>bigserial NOT NULL</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+entity "workout_session_exercises" as session_exercises {
+    <b><u>PK\tid</u></b> : <i>uuid</i>
+    <b>FK\tworkout_session_id</b> : <i>uuid NOT NULL</i>
+    <b>FK\texercise_id</b> : <i>int NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
-entity "sets" as sets {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
-    <b>FK\tsession_exercise_id</b> : <i>bigserial NOT NULL</i>
+entity "workout_sets" as sets {
+    <b><u>PK\tid</u></b> : <i>int</i>
+    <b>FK\tsession_exercise_id</b> : <i>uuid NOT NULL</i>
     \t<b>reps</b> : <i>int NOT NULL</i>
-    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
-    \t<b>volume</b> : <i>numeric[10,2] NOT NULL</i>
-    \t<b>intensity_pct</b> : <i>numeric[5,2] NOT NULL</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
-    \t<b>updated_at</b> : <i>timestamptz</i>
+    \t<b>weight_kg</b> : <i>numeric NOT NULL</i>
+    \t<b>volume</b> : <i>numeric NOT NULL</i>
+    \t<b>intensity</b> : <i>numeric NOT NULL</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
 entity "one_rep_maxes" as one_rep_maxes {
-    <b><u>PK\tid</u></b> : <i>bigserial</i>
+    <b><u>PK\tid</u></b> : <i>uuid</i>
     <b>FK\tuser_id</b> : <i>uuid NOT NULL</i>
-    <b>FK\texercise_id</b> : <i>bigserial NOT NULL</i>
-    \t<b>weight_kg</b> : <i>numeric[6,2] NOT NULL</i>
-    \t<b>video_url</b> : <i>text</i>
-    \t<b>created_at</b> : <i>timestamptz NOT NULL</i>
+    <b>FK\texercise_id</b> : <i>int NOT NULL</i>
+    \t<b>weight</b> : <i>numeric NOT NULL</i>
+    \t<b>video_url</b> : <i>varchar</i>
+    \t<b>created_at</b> : <i>timestamp NOT NULL</i>
 }
 
 ' ==== RELACJE ====
@@ -310,6 +310,5 @@ password_reset_tokens -[hidden]right- users
 exercises -[hidden]right- session_exercises
 exercises -[hidden]left- verification_codes
 user_details -[hidden]right- users
-
 
 @enduml

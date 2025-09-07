@@ -123,7 +123,7 @@ def remove_exercise_from_session(
     # remove all sets related to the exercise
     exercise_sets = db.exec(
         select(WorkoutSet).where(
-            WorkoutSet.workout_session_exercise_id == session_exercise.id
+            WorkoutSet.session_exercise_id == session_exercise.id
         )
     ).all()
 
@@ -165,7 +165,7 @@ def delete_session(
     #remove all sets related to the workout session
     db.exec(
     delete(WorkoutSet).where(
-            WorkoutSet.workout_session_exercise_id.in_([se.id for se in session_exercises])
+            WorkoutSet.session_exercise_id.in_([se.id for se in session_exercises])
         )
     )
     db.commit()
@@ -225,7 +225,7 @@ def add_set_to_exercise(
     volume = data.weight_kg * data.reps
 
     workout_set = WorkoutSet(
-        workout_session_exercise_id=session_exercise.id,
+        session_exercise_id=session_exercise.id,
         weight_kg=data.weight_kg,
         reps=data.reps,
         intensity=intensity,
@@ -279,7 +279,7 @@ def update_set(
     workout_set = db.exec(
         select(WorkoutSet).where(
             WorkoutSet.id == set_id,
-            WorkoutSet.workout_session_exercise_id == session_exercise.id,
+            WorkoutSet.session_exercise_id == session_exercise.id,
         )
     ).first()
     if not workout_set:
@@ -352,7 +352,7 @@ def delete_workout_set(
     workout_set = db.exec(
         select(WorkoutSet).where(
             WorkoutSet.id == set_id,
-            WorkoutSet.workout_session_exercise_id == session_exercise.id,
+            WorkoutSet.session_exercise_id == session_exercise.id,
         )
     ).first()
     if not workout_set:

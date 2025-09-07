@@ -60,7 +60,7 @@ def analyze_sets(
                 WorkoutSet.intensity,
                 WorkoutSet.created_at
             )
-            .join(WorkoutSessionExercise, WorkoutSessionExercise.id == WorkoutSet.workout_session_exercise_id)
+            .join(WorkoutSessionExercise, WorkoutSessionExercise.id == WorkoutSet.session_exercise_id)
             .join(WorkoutSession, WorkoutSession.id == WorkoutSessionExercise.workout_session_id)
             .join(Exercise, Exercise.id == WorkoutSessionExercise.exercise_id)
             .where(

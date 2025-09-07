@@ -8,7 +8,7 @@ class WorkoutSet(SQLModel, table=True):
     __tablename__ = "workout_sets"
 
     id: int = Field(default=None, primary_key=True)
-    workout_session_exercise_id: uuid.UUID = Field(foreign_key="workout_session_exercises.id", index=True, nullable=False)
+    session_exercise_id: uuid.UUID = Field(foreign_key="workout_session_exercises.id", index=True, nullable=False)
     weight_kg: Decimal = Field(nullable=False)
     reps: int = Field(nullable=False)
     volume: Decimal = Field(nullable=False)
